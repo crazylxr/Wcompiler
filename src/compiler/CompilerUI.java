@@ -16,8 +16,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-import javax.swing.JApplet;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -31,6 +32,7 @@ import javax.swing.JTextArea;
 import javax.swing.JToolBar;
 import javax.swing.SwingConstants;
 
+import pojo.CharTable;
 import util.LineNumberHeaderView;
 
 public class CompilerUI extends JFrame {
@@ -39,6 +41,7 @@ public class CompilerUI extends JFrame {
 	/*
 	 * 初始化组件
 	 */
+
 	JMenuBar menuBar = new JMenuBar();
 
 	JMenu folderMenu = new JMenu("文件(F)");
@@ -88,52 +91,54 @@ public class CompilerUI extends JFrame {
 	JPanel rightTopPanel = new JPanel(new BorderLayout());
 	JPanel rightBottomPanel = new JPanel(new BorderLayout());
 
-	//选项卡
-	 Container c;
-	 JTabbedPane tabbedPane;  
-	 JLabel label_taken,label_char ;
-	 JPanel panel_taken,panel_char; 
-	    
-	
+	// 选项卡
+	Container c;
+	JTabbedPane tabbedPane;
+	JLabel label_taken, label_char;
+	JPanel panel_taken, panel_char;
+
+	JTextArea charTableTextArea = new JTextArea();
+	JScrollPane charTableScrollPane = new JScrollPane(charTableTextArea);
 	JTextArea editTextArea = new JTextArea();
 	JScrollPane editScrollPane = new JScrollPane(editTextArea);
 	JTextArea tokenTextArea = new JTextArea();
 	JScrollPane tokenScrollPane = new JScrollPane(tokenTextArea);
 	JTextArea wmsgTextArea = new JTextArea();
 	JScrollPane wmsgScrollPane = new JScrollPane(wmsgTextArea);
-	LineNumberHeaderView lnhv = new LineNumberHeaderView();//行号
-	
+	LineNumberHeaderView lnhv = new LineNumberHeaderView();// 行号
+
 	FileDialog openDia = new FileDialog(this, "打开", FileDialog.LOAD);
 	FileDialog saveDia = new FileDialog(this, "保存", FileDialog.SAVE);
 	FileDialog othersaveDia = new FileDialog(this, "另存为", FileDialog.SAVE);
 
 	private File file;
-	
+
 	Analyzer analyzer = new Analyzer();
-	
+
 	public CompilerUI() {
-		//选项卡
+		// 选项卡
 		c = this.getContentPane();
-		tabbedPane = new JTabbedPane();//创建选项卡面板对象
-		
-		//创建选项卡标签
-		label_taken = new JLabel("token表",SwingConstants.CENTER);
-		label_char = new JLabel("符号表",SwingConstants.CENTER);
-		
-		//创建选项卡面板
+		tabbedPane = new JTabbedPane();// 创建选项卡面板对象
+
+		// 创建选项卡标签
+		label_taken = new JLabel("token表", SwingConstants.CENTER);
+		label_char = new JLabel("符号表", SwingConstants.CENTER);
+
+		// 创建选项卡面板
 		panel_taken = new JPanel(new BorderLayout());
 		panel_char = new JPanel(new BorderLayout());
-		
-//		panel_taken.add(label_taken);
-		panel_taken.add(tokenScrollPane,BorderLayout.CENTER);
-//		panel_char.add(label_char);
-		
+
+		// panel_taken.add(label_taken);
+		panel_taken.add(tokenScrollPane, BorderLayout.CENTER);
+		panel_char.add(charTableScrollPane, BorderLayout.CENTER);
+		// panel_char.add(label_char);
+
 		tabbedPane.addTab("token表", panel_taken);
-		tabbedPane.addTab("char表", panel_char);
-		
+		tabbedPane.addTab("符号表", panel_char);
+
 		c.add(tabbedPane);
 		c.setBackground(Color.white);
-		
+
 		// 构造顶部菜单
 		menuBar.add(folderMenu);
 		menuBar.add(editMenu);
@@ -177,14 +182,14 @@ public class CompilerUI extends JFrame {
 		innerPanel.add(rightPanel);
 		leftPanel.add(editScrollPane, BorderLayout.CENTER);
 		editScrollPane.setRowHeaderView(lnhv);
-		
+
 		rightPanel.add(c);
 		rightPanel.add(rightBottomPanel);
-//		rightTopPanel.add(tokenScrollPane, BorderLayout.CENTER);
+		// rightTopPanel.add(tokenScrollPane, BorderLayout.CENTER);
 		rightBottomPanel.add(wmsgScrollPane, BorderLayout.CENTER);
 
 		myEvent();
-		
+
 		// 初始化编译器大小位置
 		this.setSize(1300, 900);
 		this.setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -193,25 +198,53 @@ public class CompilerUI extends JFrame {
 		this.setTitle("simple编译器");
 	}
 
+	// 产生token表
+	public void productToken() {
+		StringBuffer bu = analyzer.getTokenBuffer();
+		StringBuffer erroLog = analyzer.getErroBuffer();
+
+		if (erroLog.length() == 0) {
+			wmsgTextArea.setText("暂无词法错误！");
+		} else {
+			wmsgTextArea.setText(erroLog.toString());
+		}
+
+		tokenTextArea.setText(bu.toString());
+	}
+
+	// 产生符号表
+	public void productCharTable() {
+		List<CharTable> charTable = analyzer.getCharTable();
+		StringBuffer sb = new StringBuffer();
+		for (CharTable line : charTable) {
+			sb.append(line.toString() + "\r\n\r\n");
+		}
+
+		charTableTextArea.setText(sb.toString());
+	}
+
 	private void myEvent() {
-		//点击词法分析
-		lexicalItem.addActionListener(new ActionListener() {
-			
+		
+		
+		// 点击词法分析 快捷键
+		lexicalBtn.addActionListener(new ActionListener() {
+
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				StringBuffer bu = analyzer.getTokenBuffer();
-				StringBuffer erroLog = analyzer.getErroBuffer();
-				
-				if(erroLog.length()==0){
-					wmsgTextArea.setText("暂无词法错误！");
-				}else{
-					wmsgTextArea.setText(erroLog.toString());
-				}
-			
-				tokenTextArea.setText(bu.toString());
+				productToken();
+				productCharTable();
 			}
 		});
-		
+		// 点击词法分析
+		lexicalItem.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				productToken();
+				productCharTable();
+			}
+		});
+
 		saveItem.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				if (file == null) {
@@ -241,6 +274,7 @@ public class CompilerUI extends JFrame {
 
 		openItem.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
+				
 				openDia.setVisible(true);
 				String dirPath = openDia.getDirectory();//
 				String fileName = openDia.getFile();//
@@ -251,28 +285,34 @@ public class CompilerUI extends JFrame {
 				editTextArea.setText("");//
 
 				file = new File(dirPath, fileName);
-
+					
+				//当换文件的时候清空以前的token表，错误日志，符号表
+				analyzer.setCharTable(new ArrayList<CharTable>());
+				analyzer.setErroBuffer(new StringBuffer());
+				analyzer.setTokenBuffer(new StringBuffer());
+				
 				try {
 					BufferedReader bufr = new BufferedReader(new FileReader(
 							file));
-					
+
 					String line = null;
 
 					while ((line = bufr.readLine()) != null) {
 						editTextArea.append(line + "\r\n");
 						analyzer.appendBuffer(line + "\r\n");
 					}
-					
+
 					analyzer.analyse();
-					
+
 					bufr.close();
+					
 				} catch (IOException ex) {
 					throw new RuntimeException("11");
 				}
 
 			}
 		});
-
+		
 		saveAsItem.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				if (file == null)//
@@ -300,6 +340,35 @@ public class CompilerUI extends JFrame {
 				}
 			}
 		});
+		
+		saveBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (file == null)//
+				{
+					saveDia.setVisible(true);
+					String dirPath = saveDia.getDirectory();
+					String fileName = saveDia.getFile();
+
+					if (dirPath == null || fileName == null)
+						return;
+					file = new File(dirPath, fileName);
+				}
+
+				try {
+					BufferedWriter bufw = new BufferedWriter(new FileWriter(
+							file));
+
+					String text = editTextArea.getText();
+
+					bufw.write(text);
+
+					bufw.close();
+				} catch (IOException ex) {
+					throw new RuntimeException("11");
+				}
+			}
+		});
+
 
 		exitItem.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
@@ -313,7 +382,8 @@ public class CompilerUI extends JFrame {
 			}
 		});
 	}
-	
+
+	@SuppressWarnings("unused")
 	public static void main(String[] args) {
 		CompilerUI ui = new CompilerUI();
 	}

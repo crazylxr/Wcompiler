@@ -1,9 +1,11 @@
 package compiler;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
+
+import pojo.Bracket;
+import pojo.CharTable;
 
 /**
  * java 词法分析器 读文件，结果输出未保存
@@ -20,10 +22,12 @@ public class Analyzer {
 			"public", "return", "short", "static", "super", "switch",
 			"synchronized", "this", "throw", "throws", "transient", "try",
 			"void", "volatile", "while", "strictfp", "enum", "goto", "const",
-			"assert","import","package" }; // 关键字数组
-	private char operators[] = { '+', '-', '*', '/', '=', '>', '<', '&' }; // 运算符数组
+			"assert", "import", "package" }; // 关键字数组
+	private char operators[] = { '+', '-', '*', '/', '=', '>', '<', '&', '%',
+			'?', '|', '!', '&' }; // 运算符数组
 	private char separators[] = { ',', ';', '{', '}', '(', ')', '[', ']', '_',
-			':', '、', '.', '"' }; // 分隔符数组
+			':', '、', '.', '"', '@', '\'', '\"' }; // 分隔符数组
+	// TODO
 	private StringBuffer buffer = new StringBuffer(); // 缓冲区
 	private char ch; // 字符变量，存放最新读进的源程序字符
 	private static int i = 0;
@@ -34,11 +38,28 @@ public class Analyzer {
 	private StringBuffer tokenBuffer = new StringBuffer(); // token串
 	private StringBuffer erroBuffer = new StringBuffer(); // error串
 
+	private List<CharTable> charTable = new ArrayList<>();// 符号表
+	private int numberOfCharTable = 0;// 符号表个数
+
+	private Stack<Bracket> leftBrackets = new Stack<>();
+
 	public Analyzer() {
+	}
+
+	public List<CharTable> getCharTable() {
+		return charTable;
+	}
+
+	public void setCharTable(ArrayList<CharTable> arrayList) {
+		this.charTable = arrayList;
 	}
 
 	public StringBuffer getTokenBuffer() {
 		return tokenBuffer;
+	}
+
+	public void setTokenBuffer(StringBuffer tokenBuffer) {
+		this.tokenBuffer = tokenBuffer;
 	}
 
 	public StringBuffer getErroBuffer() {
@@ -150,8 +171,9 @@ public class Analyzer {
 	 */
 	public void insertKeyWords(String strToken) {
 		// System.out.print("关键字，种别[1,50]");
-		System.out.println("=====(" + ketType + "," + strToken + ")");
-		tokenBuffer.append("( "+numberLine+" , " + ketType + " , " + strToken + " )" + "\r\n");
+		// System.out.println("=====(" + ketType + "," + strToken + ")");
+		tokenBuffer.append("( " + numberLine + " , " + ketType + " , "
+				+ strToken + " )" + "\r\n");
 	}
 
 	/**
@@ -159,27 +181,72 @@ public class Analyzer {
 	 */
 	public void insertId(String strToken) {
 		// System.out.print("标识符，种别200");
-		System.out.println("=====(" + 200 + "," + strToken + ")");
-		tokenBuffer.append("( "+numberLine+" , "  + 200 + " , " + strToken + " )" + "\r\n");
+		if (isIdentifier(strToken)) {
+			if (isexist_sym(strToken) == 0) {
+				charTable.add(new CharTable(++numberOfCharTable, strToken,
+						strToken.length(), "整型", "简单变量", strToken, null));// 插入到符号表
+			}
+
+			tokenBuffer.append("( " + numberLine + " , " + 200 + " , "
+					+ strToken + " )" + "\r\n");
+		} else {
+			appendErrorBuffer("error:" + numberLine + "  标识符：" + strToken
+					+ "错误定义");
+		}
 	}
 
 	/**
 	 * 将strToken中的常数插入到常数表中
 	 */
 	public void insertConst(String strToken) {
-		int num = Integer.parseInt(strToken);
 		// System.out.print("常数，种别0");
-		System.out.println("=====(" + 0 + "," + strToken + ")");
-		tokenBuffer.append("( " +numberLine+" , " + 0 + " , " + strToken + " )" + "\r\n");
+		// System.out.println("=====(" + 0 + "," + strToken + ")");
+		if (isexist_sym(strToken) == 0) {
+			charTable.add(new CharTable(++numberOfCharTable, strToken, strToken
+					.length(), "整型", "常数", strToken, null));// 插入到符号表
+		}
+
+		tokenBuffer.append("( " + numberLine + " , " + 0 + " , " + strToken
+				+ " )" + "\r\n");
 	}
 
 	/**
 	 * 将ch插入到运算符表中
 	 */
-	public void insertOperators(char ch) {
+	public void insertOperators(char ch2) {
 		// System.out.print("运算符，种别 [51,100)");
-		System.out.println("=====(" + ketType + "," + ch + ")");
-		tokenBuffer.append("( " +numberLine+" , " + ketType + " , " + ch + " )" + "\r\n");
+		// System.out.println("=====(" + ketType + "," + ch + ")");
+
+		// TODO
+		if (ch2 == '/') {
+			getChar();
+			if (ch == '*') {// 多行注释
+				while (true) {
+					if (ch == '*') {
+						getChar();
+						if (ch == '/') {
+							break;
+						} else {
+							retract();
+						}
+					} else {
+						getChar();
+						getBc();
+					}
+				}
+			} else if (ch == '/') {// 单行注释
+				while (ch != '\r') {
+					getChar();
+					getBc();
+				}
+				retract();
+			} else {
+				retract();
+				tokenBuffer.append("( " + numberLine + " , " + ketType + " , "
+						+ ch + " )" + "\r\n");
+			}
+		}
+
 	}
 
 	/**
@@ -187,27 +254,133 @@ public class Analyzer {
 	 */
 	public void insertSeparators() {
 		// System.out.print("分隔符，种别 [101,150)");
-		System.out.println("=====(" + ketType + "," + ch + ")");
-		tokenBuffer.append("( "+numberLine+" , "  + ketType + " , " + ch + " )" + "\r\n");
+		// System.out.println("=====(" + ketType + "," + ch + ")");
+
+		if (ch == '{' || ch == '(') { // 如果分隔符为左括号，压入左括号栈
+			leftBrackets.push(new Bracket(ch + "", numberLine));
+		}
+
+		if (ch == '}') {
+			if (leftBrackets.isEmpty()) {
+				appendErrorBuffer("在" + numberLine + "行有不匹配的括号'}'");
+			} else if (leftBrackets.peek().getName().equals("{")) {
+				leftBrackets.pop();
+			}
+		}
+
+		if (ch == ')') {
+			if (leftBrackets.isEmpty()) {
+				appendErrorBuffer("在" + numberLine + "行有不匹配的括号')'");
+			} else if (leftBrackets.peek().getName().equals("(")) {
+				leftBrackets.pop();
+			}
+
+		}
+
+		tokenBuffer.append("( " + numberLine + " , " + ketType + " , " + ch
+				+ " )" + "\r\n");
+	}
+
+	/**
+	 * @desciption 查询符号表里是否有
+	 * @param name
+	 *            名字
+	 * @return 如果存在，则返回入口，不存在则返回0
+	 */
+	public int isexist_sym(String name) {
+		for (CharTable line : charTable) {
+			if (line.getName().equals(name)) {
+				return line.getEnroll();
+			}
+		}
+		return 0;
+	}
+
+	// 是否是标识符
+	public boolean isIdentifier(String string) {
+		boolean result = false;
+		String regex = "^[A-Za-z_$]+[A-Za-z_$\\d]+$";
+		if (string.matches(regex)) {
+			result = true;
+		}
+
+		return result;
+	}
+
+	/**
+	 * 
+	 * @desciption 识别数的函数
+	 * @param
+	 * @return
+	 */
+	public void recog_dig(char ch){
+		char state = '0';
+		while(state!='7'){
+			switch(state){
+			case '0'://读入一个数字
+				if(Character.isDigit(ch)){
+					state = '1';
+				}else{
+					appendErrorBuffer(numberLine+" : "+ch +"   不是一个数字！");
+				}
+				break;
+			case '1':
+				if(Character.isDigit(ch)){//仍然读入数字
+					state = '1';
+				}else if(ch == '.'){//读入小数点，识别实数
+					state = '2';
+				}else if(ch == 'e'||ch == 'E'){//读入e获E ，带指数
+					state = '4';
+				}else{
+					retract();
+					//返回整数类型
+				}
+				break;
+			case '2':
+				if(Character.isDigit(ch)){//读入数字
+					state = '3';
+				}else{
+					appendErrorBuffer(numberLine+" : "+"数字错误");
+				}
+				break;
+			case '3':
+				if(Character.isDigit(ch)){//读入数字
+					state = '3';
+				}else if((ch == 'E')||(ch == 'e')){//读入e或E
+					state = '4';
+				}else{//已识别完带小数的实数，返回
+					retract();
+					//返回实数类型
+				}
+				break;
+			case '4':
+				if(Character.isDigit(ch)){//读入数字
+					state = '6';
+				}else if(ch == '+'||ch == '-'){//读入+，-符号
+					state = '5';
+				}
+				break;
+			}
+		}
 	}
 
 	/**
 	 * 词法分析
 	 */
 	public void analyse() {
-		boolean isCode, value;
+		// boolean isCode, value;
 		strToken = ""; // 置strToken为空串
-		
+
 		while (i < buffer.length()) {
-			if(ch=='\r'){
+			if (ch == '\n') {
 				numberLine++;
 			}
-			
+
 			getChar();
 			getBc();
-			
+
 			if (isLetter()) { // 如果ch为字母
-				while (isLetter() || isDigit()) {
+				while (isLetter() || isDigit() || ch == '_') {
 					concat();
 					getChar();
 				}
@@ -230,9 +403,22 @@ public class Analyzer {
 				insertOperators(ch);
 			} else if (isSeparators() > 0) { // 如果是分隔符，插入到5.分隔符表中
 				insertSeparators();
-			} else if (strToken.equals(" ")) {
-				appendErrorBuffer("erro:" + strToken + "  未能识别的单词" + "\r\n");
+			} else {
+				// TODO
+				if (ch != ' ' && ch != '\r' && ch != '\n' && ch != '\t') {
+					appendErrorBuffer(numberLine + ": erro:" + "  未能识别的单词:"
+							+ ch + "\r\n");
+				}
+
 			}
+		}
+
+		if (!leftBrackets.isEmpty()) {
+			while (!leftBrackets.isEmpty()) {
+				appendErrorBuffer("括号不满足:" + leftBrackets.pop().toString()
+						+ "\r\n");
+			}
+
 		}
 	}
 

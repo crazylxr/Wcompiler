@@ -191,7 +191,7 @@ public class Analyzer {
 					+ strToken + " )" + "\r\n");
 		} else {
 			appendErrorBuffer("error:" + numberLine + "  标识符：" + strToken
-					+ "错误定义");
+					+ "错误定义\r\n");
 		}
 	}
 
@@ -224,6 +224,9 @@ public class Analyzer {
 				while (true) {
 					if (ch == '*') {
 						getChar();
+						if(ch == '\r'){
+							numberLine++;
+						}
 						if (ch == '/') {
 							break;
 						} else {
@@ -231,12 +234,16 @@ public class Analyzer {
 						}
 					} else {
 						getChar();
+						if(ch == '\r'){
+							numberLine++;
+						}
 						getBc();
 					}
 				}
 			} else if (ch == '/') {// 单行注释
 				while (ch != '\r') {
 					getChar();
+					
 					getBc();
 				}
 				retract();
@@ -396,9 +403,24 @@ public class Analyzer {
 					concat();
 					getChar();
 				}
-				retract(); // 回调
+				if(Character.isSpaceChar(ch)){
+					retract(); // 回调
+					insertConst(strToken); // 是常数，插入到3.常数表中
+					strToken = "";
+				}else{
+					if(!Character.isSpaceChar(ch)&&ch!='\n'){
+						concat();
+						getChar();
+					}
+					appendErrorBuffer(numberLine + ": erro:" + "  未能识别的单词:"
+							+ ch + "\r\n");
+					retract();
+					strToken = "";
+				}
+				
+				/*retract(); // 回调
 				insertConst(strToken); // 是常数，插入到3.常数表中
-				strToken = "";
+				strToken = "";*/
 			} else if (isOperator() > 0) { // 如果是运算符，则插入到4.运算符表
 				insertOperators(ch);
 			} else if (isSeparators() > 0) { // 如果是分隔符，插入到5.分隔符表中

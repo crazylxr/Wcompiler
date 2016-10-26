@@ -65,6 +65,7 @@ public class CompilerUI extends JFrame {
 	JMenuItem pasteItem = new JMenuItem("粘贴");
 
 	JMenuItem lexicalItem = new JMenuItem("词法分析器");
+	JMenuItem syntacticItem = new JMenuItem("语法分析器");
 
 	/*
 	 * 工具栏
@@ -161,6 +162,7 @@ public class CompilerUI extends JFrame {
 		editMenu.add(pasteItem);
 
 		lexicalMenu.add(lexicalItem);
+		syntacticMenu.add(syntacticItem);
 
 		this.setJMenuBar(menuBar);
 
@@ -224,7 +226,15 @@ public class CompilerUI extends JFrame {
 	}
 
 	private void myEvent() {
-		
+		// 点击语法分析
+		syntacticItem.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				new GramerAnalyzer();
+				System.out.println(666);
+			}
+		});
 		
 		// 点击词法分析 快捷键
 		lexicalBtn.addActionListener(new ActionListener() {
@@ -309,7 +319,6 @@ public class CompilerUI extends JFrame {
 				} catch (IOException ex) {
 					throw new RuntimeException("11");
 				}
-
 			}
 		});
 		
